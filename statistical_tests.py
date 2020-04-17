@@ -134,7 +134,7 @@ class TwoPropZTest:
     
     def z_test_statistic(self, alternative, method='scipy', check_equality=False):
         
-        # scipy
+        # statsmodels
         count = np.array([self.converted_B, self.converted_A])
         nobs = np.array([self.n_B, self.n_A])
         value = 0 
