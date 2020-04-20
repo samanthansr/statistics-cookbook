@@ -600,7 +600,7 @@ class TwoSampleZTest:
     
     def get_test_results(self, sig_level, alternative):
         
-        z_score, pval, std_error = self.z_test_statistic(alternative=alternative, method=z_score_method)
+        z_score, pval, std_error = self.z_test_statistic(alternative=alternative)
         critical_value = self.critical_value(sig_level, alternative)
         z_beta = self.z_beta(sig_level, alternative)
         power = self.power(sig_level, alternative)
