@@ -855,7 +855,7 @@ class TwoSampleIndTTest:
         # use self.variance / pooled variance
 
         t_null = scs.t(df=self.dof, loc=0, scale=self.std_error) # 0 because H0 is no difference
-        t_alt = scs.t(df=self.dof, loc=diff_mean, scale=self.std_error)
+        t_alt = scs.nct(df=self.dof, nc=self.ncp, loc=diff_mean, scale=self.std_error)
 
         fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -971,7 +971,7 @@ class TwoSampleIndTTest:
         fig, ax = plt.subplots(figsize=(12,6))
 
         t_null = scs.t(df=self.dof, loc=0, scale=1)
-        t_alt = scs.t(df=self.dof, loc=t_score, scale=1)
+        t_alt = scs.nct(df=self.dof, nc=self.ncp)
 
         x = np.linspace(
             min(t_null.ppf(0.01), t_alt.ppf(0.01)),
