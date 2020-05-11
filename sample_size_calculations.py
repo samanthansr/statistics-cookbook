@@ -4,7 +4,7 @@ import scipy.stats as scs
 def ttest_sample_size(mu1, mu2, s1, s2, r, power,
                       sig_level=0.05, alternative='two-sided', pooled=True):
     
-    n1 = 4 # initialisation
+    n1 = 2 # initialisation
     n2 = n1 * r
     sim_power = 0
     
