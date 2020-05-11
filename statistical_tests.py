@@ -979,7 +979,6 @@ class TwoSampleIndTTest:
             1000
         )
 
-        
         y_null = t_null.pdf(x)
         ax.plot(x, y_null, label='control/null', c='cornflowerblue', linewidth=3)
         ax.axvline(x=t_score, linestyle='--', c='cornflowerblue', linewidth=2)
