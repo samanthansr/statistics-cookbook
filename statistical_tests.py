@@ -855,7 +855,7 @@ class TwoSampleIndTTest:
         # use self.variance / pooled variance
 
         t_null = scs.t(df=self.dof, loc=0, scale=self.std_error) # 0 because H0 is no difference
-        t_alt = scs.nct(df=self.dof, nc=self.ncp, loc=diff_mean, scale=self.std_error)
+        t_alt = scs.nct(df=self.dof, nc=self.ncp, loc=0, scale=self.std_error)
 
         fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -1127,3 +1127,322 @@ class TwoSampleIndTTest:
             confidence_interval = (-np.inf, diff_mean + margin_of_error)
 
         return confidence_interval
+
+class TwoSamplePairedTTest:
+
+    def __init__(self, X_A, X_B):
+
+        self.X_A = X_A
+        self.X_B = X_B
+
+        self.n_A = len(X_A)
+        self.n_B = len(X_B)
+        assert self.n_A == self.n_B
+
+        self.diff = np.array(X_A) - np.array(X_B)
+        self.diff_mean = np.mean(self.diff)
+        self.diff_sum_squared_difference = sum((self.diff - self.diff_mean) ** 2)
+        self.diff_var = self.diff_sum_squared_difference / (self.n_A - 1)
+        self.diff_stddev = np.sqrt(self.diff_var)
+
+        self.dof = self.n_A - 1
+        self.std_error = self.diff_stddev / np.sqrt(self.n_A)
+
+        self.t_value = (self.diff_mean - 0) / self.std_error
+        
+    def plot_samples(self):
+        
+        fig = plt.figure(figsize=(12, 6))
+        
+        sns.distplot(self.X_A, label='X_A / Before', color='cornflowerblue')
+        sns.distplot(self.X_B, label='X_B / After', color='lightcoral')
+        
+        plt.title('Samples Distribution of Values (Histogram)')
+        plt.ylabel('Frequencies')
+        
+        plt.legend()
+        plt.show()
+
+    def plot_sampling_distribution_of_difference_in_means(self):
+
+        t_null = scs.t(df=self.dof, loc=0, scale=self.std_error) # 0 because H0 is no difference
+        t_alt = scs.nct(df=self.dof, nc=self.t_value, loc=0, scale=self.std_error)
+
+        fig, ax = plt.subplots(figsize=(12, 6))
+
+        x = np.linspace(
+            min(t_null.ppf(0.01), t_alt.ppf(0.01)),
+            max(t_null.ppf(0.99), t_alt.ppf(0.99)),
+            1000
+        )
+
+        y_null = t_null.pdf(x)
+        ax.plot(x, y_null, label='Null Hypothesis', c='cornflowerblue')
+        ax.axvline(x=0, linestyle='--', c='lightgrey')
+
+        y_alt = t_alt.pdf(x)
+        ax.plot(x, y_alt, label='Alternate Hypothesis', c='lightcoral')
+        ax.axvline(x=self.diff_mean, linestyle='--', c='lightcoral')
+        
+        plt.xlabel('Distribution of the Difference in Sample Means')
+        plt.ylabel('Probability Density Function (PDF)')
+        plt.legend()
+        plt.show()
+
+    def t_test_statistic(self, alternative):
+        
+        # diff_mean = self.X_bar_B - self.X_bar_A
+        
+        # t_score = (self.diff_mean - 0) / self.std_error
+        
+        if alternative == 'smaller':
+            pval = scs.t.cdf(self.t_value, self.dof)
+        elif alternative == 'larger':
+            pval = 1 - scs.t.cdf(self.t_value, self.dof)
+        elif alternative == 'two-sided':
+            pval = (1 - scs.t.cdf(abs(self.t_value), self.dof)) * 2
+
+        return (self.t_value, pval, self.std_error)
+        
+    def critical_value(self, sig_level, alternative):
+
+        t_null = scs.t(df=self.dof, loc=0, scale=1)
+        
+        if alternative == 'smaller':
+            return t_null.ppf(sig_level)
+        
+        elif alternative == 'larger':
+            return t_null.ppf(1 - sig_level)
+        
+        elif alternative == 'two-sided':
+            return [t_null.ppf(sig_level / 2), t_null.ppf(1 - (sig_level / 2))]
+        
+    def power(self, sig_level, alternative):
+        
+        # implementation of power calculation taken from NCSS:
+        # https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/PASS/Multiple_Testing_for_One_Mean-One-Sample_or_Paired_Data.pdf
+
+        t_alt = scs.nct(df=self.dof, nc=self.t_value)
+        cv = self.critical_value(sig_level, alternative)
+        
+        if alternative == 'smaller':
+            return t_alt.cdf(cv)
+        
+        elif alternative == 'larger':
+            return 1 - t_alt.cdf(cv)
+        
+        elif alternative == 'two-sided':
+            return [t_alt.cdf(cv[0]), 1 - t_alt.cdf(cv[1])]
+        
+    def beta(self, sig_level, alternative):
+
+        t_alt = scs.nct(df=self.dof, nc=self.t_value)
+        cv = self.critical_value(sig_level, alternative)
+        
+        power = self.power(sig_level, alternative)
+        
+        if alternative == 'two-sided':
+            return t_alt.cdf(cv[1]) - t_alt.cdf(cv[0])
+            
+        else:
+            return 1 - power
+    
+    def get_test_results(self, sig_level, alternative):
+        
+        t_score, pval, std_error = self.t_test_statistic(alternative=alternative)
+        critical_value = self.critical_value(sig_level, alternative)
+        power = self.power(sig_level, alternative)
+        beta = self.beta(sig_level, alternative)
+        
+        results = {
+            't Score': t_score,
+            'p-value': pval,
+            'Std. Error': std_error,
+            'Degrees of Freedom': self.dof,
+            'Critical Value (t-alpha)': critical_value,
+            'Power': power,
+            'Beta (Type II Error)': beta
+        }
+        
+        return results
+
+    def plot_sampling_dist_of_difference_standardized(self, sig_level, alternative, 
+                                                      show_alpha=False, show_pvalue=False,
+                                                      show_beta=False, show_power=False):
+        
+        ### calculating values ### 
+        t_score, pval, _ = self.t_test_statistic(alternative=alternative)
+        critical_value = self.critical_value(sig_level, alternative)
+        power = self.power(sig_level, alternative)
+        beta = self.beta(sig_level, alternative)
+        
+        ### Plotting Null and Alternate Hypothesis ### 
+        
+        fig, ax = plt.subplots(figsize=(12,6))
+
+        t_null = scs.t(df=self.dof, loc=0, scale=1)
+        t_alt = scs.nct(df=self.dof, nc=self.t_value)
+
+        x = np.linspace(
+            min(t_null.ppf(0.001), t_alt.ppf(0.01), -abs(t_score)),
+            max(t_null.ppf(0.99), t_alt.ppf(0.99), abs(t_score)),
+            1000
+        )
+
+        y_null = t_null.pdf(x)
+        ax.plot(x, y_null, label='control/null', c='cornflowerblue', linewidth=3)
+
+        if alternative == 'two-sided':
+            ax.vlines(x=[-t_score, t_score], ymin=0, ymax=0.4, linestyle='--', color='cornflowerblue', linewidth=2)
+            ax.text(abs(t_score), 0.40, '$t$' + ' = {:.5f}'.format(t_score), 
+                    bbox={'facecolor':'cornflowerblue', 'alpha':0.5}, horizontalalignment='center')
+            ax.text(-abs(t_score), 0.40, '$t$' + ' = {:.5f}'.format(-abs(t_score)), 
+                    bbox={'facecolor':'cornflowerblue', 'alpha':0.5}, horizontalalignment='center')
+        else: 
+            ax.axvline(x=t_score, linestyle='--', c='cornflowerblue', linewidth=2)
+            ax.text(t_score, 0.40, '$t$' + ' = {:.5f}'.format(t_score), 
+                    bbox={'facecolor':'cornflowerblue', 'alpha':0.5}, horizontalalignment='center')
+            
+        
+        y_alt = t_alt.pdf(x)
+        ax.plot(x, y_alt, label='experiment/alternate', c='lightcoral', linestyle=':')
+        
+        ### Plotting critical regions ### 
+        if alternative == 'two-sided':
+            ax.axvline(x=critical_value[0], linestyle = '--', c='black')
+            ax.axvline(x=critical_value[1], linestyle = '--', c='black')
+            ax.text(critical_value[0], 0.40, '$t_{\\alpha}$' + ' = {:.5f}'.format(critical_value[0]), 
+                    bbox={'facecolor':'white', 'alpha':0.5}, horizontalalignment='center')
+            ax.text(critical_value[1], 0.40, '$t_{\\alpha}$' + ' = {:.5f}'.format(critical_value[1]), 
+                    bbox={'facecolor':'white', 'alpha':0.5}, horizontalalignment='center')
+        else: 
+            ax.axvline(x=critical_value, linestyle = '--', c='black')
+            ax.text(critical_value, 0.40, '$t_{\\alpha}$' + ' = {:.5f}'.format(critical_value), 
+                    bbox={'facecolor':'white', 'alpha':0.5}, horizontalalignment='center')
+            
+        ### Plotting shading areas ### 
+            
+        if show_pvalue:
+            ### SHADING IN P-VALUE ###
+            if alternative == 'two-sided':
+                ax.fill_between(x, 0, y_null, color='cornflowerblue', alpha=0.25, where=(abs(x) > abs(t_score)))
+                ax.text(-abs(t_score), 0.05,'p-value = {:.5f}'.format(pval/2), 
+                        style='italic', bbox={'facecolor':'cornflowerblue', 
+                                              'alpha':0.25})
+                ax.text(abs(t_score), 0.05,'p-value = {:.5f}'.format(pval/2), 
+                        style='italic', bbox={'facecolor':'cornflowerblue', 
+                                              'alpha':0.25})
+            
+            elif alternative == 'smaller':
+                ax.fill_between(x, 0, y_null, color='cornflowerblue', alpha=0.25, where=(x < t_score))
+                ax.text(t_score, 0.05, 'p-value = {:.5f}'.format(pval), style='italic', 
+                        bbox={'facecolor':'cornflowerblue', 
+                              'alpha':0.25})
+                
+            else:
+                ax.fill_between(x, 0, y_null, color='cornflowerblue', alpha=0.25, where=(x > t_score))
+                ax.text(t_score, 0.05, 'p-value = {:.5f}'.format(pval), style='italic', 
+                        bbox={'facecolor':'cornflowerblue', 
+                              'alpha':0.25})
+        
+        if show_alpha:
+            ### SHADING IN ALPHA/SIG. LEVEL ###
+            if alternative == 'two-sided':
+                ax.fill_between(x, 0, y_null, color='grey', alpha=0.25, where=(abs(x) > critical_value[1]))
+                ax.text(critical_value[0], 0, 
+                        '$\\alpha = {:.5f}$'.format(t_null.cdf(critical_value[0])), 
+                        bbox={'facecolor':'grey', 'alpha':0.25}, horizontalalignment='center')
+                ax.text(critical_value[1], 0, 
+                        '$\\alpha = {:.5f}$'.format(t_null.cdf(critical_value[0])), 
+                        bbox={'facecolor':'grey', 'alpha':0.25}, horizontalalignment='center')
+                
+            elif alternative == 'smaller':
+                ax.fill_between(x, 0, y_null, color='grey', alpha=0.25, where=(x < critical_value))
+                ax.text(critical_value, 0, 
+                    '$\\alpha = {:.5f}$'.format(t_null.cdf(critical_value)), 
+                    bbox={'facecolor':'grey', 'alpha':0.25}, horizontalalignment='center')
+                
+            else:
+                ax.fill_between(x, 0, y_null, color='grey', alpha=0.25, where=(x > critical_value))
+                ax.text(critical_value, 0, 
+                        '$\\alpha = {:.5f}$'.format(1 - t_null.cdf(critical_value)), 
+                        bbox={'facecolor':'grey', 'alpha':0.25}, horizontalalignment='center')
+            
+        
+        if show_power:
+            ### SHADING IN POWER ###
+            if alternative == 'smaller':
+                ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(x < critical_value))
+                ax.text(-2.8, 0.1, '$1 - \\beta$' + ' = {:.5f}'.format(power), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+            elif alternative == 'larger':
+                ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(x > critical_value))
+                ax.text(2.8, 0.1, '$1 - \\beta$' + ' = {:.5f}'.format(power), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+            else:
+                ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(abs(x) > critical_value[1]))
+                ax.text(-2.8, 0.1, '$1 - \\beta$' + ' = {:.5f}'.format(power[0]), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+                ax.text(2.8, 0.1, '$1 - \\beta$' + ' = {:.5f}'.format(power[1]), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+                ax.text(2.7, 0.3, 'Total Stat. Power: {:.5f}'.format(sum(power)), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+                
+        
+        if show_beta:
+            ### SHADING IN BETA (TYPE II ERROR) ###
+            
+            if alternative == 'smaller':
+                ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(x > critical_value))
+                ax.text(0, 0.25, '$\\beta$' + ' = {:.5f}'.format(beta), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+            elif alternative == 'larger':
+                ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(x < critical_value))
+                ax.text(0, 0.25, '$\\beta$' + ' = {:.5f}'.format(beta), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+                
+            else: 
+                
+                ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(abs(x) < critical_value[1]))
+                ax.text(0, 0.25, '$\\beta$' + ' = {:.5f}'.format(beta), style='italic', 
+                        bbox={'facecolor':'lightcoral', 
+                              'alpha':0.25})
+        
+        
+        plt.xlabel('t-value, relative to the NULL hypothesis')
+        plt.ylabel('Probability Density Function (PDF)')
+        plt.legend()
+        plt.show()
+
+    # def confidence_intervals(self, confidence_level, alternative):
+        
+    #     # if the null hypothesis (0, because no difference) 
+    #     # does not lie within the confidence interval, 
+    #     # we have sufficient evidence to reject the null hypothesis
+        
+    #     diff_mean = self.X_bar_B - self.X_bar_A
+    #     t_null = scs.t(df=self.dof, loc=0, scale=1)
+        
+    #     if alternative == 'two-sided':
+    #         t_value = abs(t_null.ppf(confidence_level/2))
+    #         margin_of_error = t_value * self.std_error
+    #         confidence_interval = (diff_mean - margin_of_error, diff_mean + margin_of_error)
+        
+    #     elif alternative == 'larger':
+    #         t_value = t_null.ppf(1 - confidence_level)
+    #         margin_of_error = t_value * self.std_error
+    #         confidence_interval = (diff_mean + margin_of_error, np.inf)
+            
+    #     elif alternative == 'smaller':
+    #         t_value = t_null.ppf(confidence_level)
+    #         margin_of_error = t_value * self.std_error
+    #         confidence_interval = (-np.inf, diff_mean + margin_of_error)
+
+    #     return confidence_interval
