@@ -1,8 +1,8 @@
 import numpy as np
 import scipy.stats as scs
 
-def ttest_sample_size(mu1, mu2, s1, s2, r, power,
-                      sig_level=0.05, alternative='two-sided', pooled=True):
+def ttest_ind_sample_size(mu1, mu2, s1, s2, r, power,
+                          sig_level=0.05, alternative='two-sided', pooled=True):
     
     n1 = 2 # initialisation
     n2 = n1 * r
@@ -53,3 +53,52 @@ def ttest_sample_size(mu1, mu2, s1, s2, r, power,
     print('Actual Power: ', sim_power)
     
     return (np.ceil(n1), np.ceil(n2))
+
+def ttest_paired_sample_size(starting_n, effect_size, 
+                             power=0.8, sig_level=0.05, alternative='two-sided'):
+
+    n = starting_n # initialisation
+    sim_power = 0
+    
+    while sim_power < power:
+        
+        n += 1
+    
+        dof = n - 1
+        ncp = effect_size * np.sqrt(n)
+
+        t_null = scs.t(df=dof, loc=0, scale=1)
+        t_alt = scs.nct(df=dof, nc=ncp)
+
+        if alternative == 'smaller':
+            cv = t_null.ppf(sig_level)
+            sim_power = t_alt.cdf(cv)
+
+        elif alternative == 'larger':
+            cv = t_null.ppf(1 - sig_level)
+            sim_power = 1 - t_alt.cdf(cv)
+
+        elif alternative == 'two-sided':
+            cv = [t_null.ppf(sig_level / 2), t_null.ppf(1 - (sig_level / 2))]
+            sim_power = sum([t_alt.cdf(cv[0]), 1 - t_alt.cdf(cv[1])])
+
+    print('ncp: ', ncp)
+    print('Critical t: ', cv)
+    print('Actual Power: ', sim_power)
+
+    return np.ceil(n)
+
+def effect_size_paired_ttest_from_differences(diff_mean, diff_sd):
+    
+    es = diff_mean / diff_sd
+    return es
+
+def effect_size_paired_ttest_from_group_params(mu1, mu2, s1, s2, corr):
+        
+    diff_mean = mu2 - mu1
+    diff_sd = np.sqrt(s1**2 + s2**2 - (2*corr*s1*s2))
+    es = diff_mean / diff_sd
+
+    return es
+
+    

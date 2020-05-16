@@ -376,7 +376,7 @@ class TwoPropZTest:
         plt.legend()
         plt.show()
         
-    def confidence_intervals(self, confidence_level, alternative):
+    def confidence_intervals(self, sig_level, alternative):
         
         # if the null hypothesis (0, because no difference) 
         # does not lie within the confidence interval, 
@@ -387,17 +387,17 @@ class TwoPropZTest:
         std_error_pooled = np.sqrt(pooled_proportion * (1 - pooled_proportion) * (1/self.n_A + 1/self.n_B))
         
         if alternative == 'two-sided':
-            z_value = abs(scs.norm(0, 1).ppf(1-(confidence_level/2)))
+            z_value = abs(scs.norm(0, 1).ppf(1-(sig_level/2)))
             margin_of_error = z_value * std_error_pooled
             confidence_interval = (delta - margin_of_error, delta + margin_of_error)
         
         elif alternative == 'larger':
-            z_value = scs.norm(0.1).ppf(1 - confidence_level)
+            z_value = scs.norm(0.1).ppf(1 - sig_level)
             margin_of_error = z_value * std_error_pooled
             confidence_interval = (delta + margin_of_error, np.inf)
             
         elif alternative == 'smaller':
-            z_value = scs.norm(0.1).ppf(confidence_level)
+            z_value = scs.norm(0.1).ppf(sig_level)
             margin_of_error = z_value * std_error_pooled
             confidence_interval = (-np.inf, delta + margin_of_error)
 
@@ -1102,7 +1102,7 @@ class TwoSampleIndTTest:
         plt.legend()
         plt.show()
 
-    def confidence_intervals(self, confidence_level, alternative):
+    def confidence_intervals(self, sig_level, alternative):
         
         # if the null hypothesis (0, because no difference) 
         # does not lie within the confidence interval, 
@@ -1112,17 +1112,17 @@ class TwoSampleIndTTest:
         t_null = scs.t(df=self.dof, loc=0, scale=1)
         
         if alternative == 'two-sided':
-            t_value = abs(t_null.ppf(confidence_level/2))
+            t_value = abs(t_null.ppf(sig_level/2))
             margin_of_error = t_value * self.std_error
             confidence_interval = (diff_mean - margin_of_error, diff_mean + margin_of_error)
         
         elif alternative == 'larger':
-            t_value = t_null.ppf(1 - confidence_level)
+            t_value = t_null.ppf(1 - sig_level)
             margin_of_error = t_value * self.std_error
             confidence_interval = (diff_mean + margin_of_error, np.inf)
             
         elif alternative == 'smaller':
-            t_value = t_null.ppf(confidence_level)
+            t_value = t_null.ppf(sig_level)
             margin_of_error = t_value * self.std_error
             confidence_interval = (-np.inf, diff_mean + margin_of_error)
 
@@ -1421,28 +1421,28 @@ class TwoSamplePairedTTest:
         plt.legend()
         plt.show()
 
-    # def confidence_intervals(self, confidence_level, alternative):
+    def confidence_intervals(self, sig_level, alternative):
         
-    #     # if the null hypothesis (0, because no difference) 
-    #     # does not lie within the confidence interval, 
-    #     # we have sufficient evidence to reject the null hypothesis
+        # if the null hypothesis (0, because no difference) 
+        # does not lie within the confidence interval, 
+        # we have sufficient evidence to reject the null hypothesis
         
-    #     diff_mean = self.X_bar_B - self.X_bar_A
-    #     t_null = scs.t(df=self.dof, loc=0, scale=1)
+        diff_mean = self.diff_mean
+        t_null = scs.t(df=self.dof, loc=0, scale=1)
         
-    #     if alternative == 'two-sided':
-    #         t_value = abs(t_null.ppf(confidence_level/2))
-    #         margin_of_error = t_value * self.std_error
-    #         confidence_interval = (diff_mean - margin_of_error, diff_mean + margin_of_error)
+        if alternative == 'two-sided':
+            t_value = abs(t_null.ppf(sig_level/2))
+            margin_of_error = t_value * self.std_error
+            confidence_interval = (diff_mean - margin_of_error, diff_mean + margin_of_error)
         
-    #     elif alternative == 'larger':
-    #         t_value = t_null.ppf(1 - confidence_level)
-    #         margin_of_error = t_value * self.std_error
-    #         confidence_interval = (diff_mean + margin_of_error, np.inf)
+        elif alternative == 'larger':
+            t_value = t_null.ppf(1 - sig_level)
+            margin_of_error = t_value * self.std_error
+            confidence_interval = (diff_mean + margin_of_error, np.inf)
             
-    #     elif alternative == 'smaller':
-    #         t_value = t_null.ppf(confidence_level)
-    #         margin_of_error = t_value * self.std_error
-    #         confidence_interval = (-np.inf, diff_mean + margin_of_error)
+        elif alternative == 'smaller':
+            t_value = t_null.ppf(sig_level)
+            margin_of_error = t_value * self.std_error
+            confidence_interval = (-np.inf, diff_mean + margin_of_error)
 
-    #     return confidence_interval
+        return confidence_interval
