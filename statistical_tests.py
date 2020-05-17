@@ -1140,10 +1140,10 @@ class TwoSamplePairedTTest:
         assert self.n_A == self.n_B
 
         self.diff = np.array(X_A) - np.array(X_B)
-        self.diff_mean = np.mean(self.diff)
+        self.diff_mean = np.mean(self.diff) # mean of the differences
         self.diff_sum_squared_difference = sum((self.diff - self.diff_mean) ** 2)
         self.diff_var = self.diff_sum_squared_difference / (self.n_A - 1)
-        self.diff_stddev = np.sqrt(self.diff_var)
+        self.diff_stddev = np.sqrt(self.diff_var) # stddev of the differences
 
         self.dof = self.n_A - 1
         self.std_error = self.diff_stddev / np.sqrt(self.n_A)
