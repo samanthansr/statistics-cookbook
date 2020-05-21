@@ -1446,3 +1446,47 @@ class TwoSamplePairedTTest:
             confidence_interval = (-np.inf, diff_mean + margin_of_error)
 
         return confidence_interval
+
+class Chi2Ind:
+
+    def __init__(self, obs_freq):
+        self.obs_freq = obs_freq
+        self.dof = (obs_freq.shape[0]-1) * (obs_freq.shape[1]-1)
+    
+    def expected_freq(self):
+
+        row_sums = self.obs_freq.sum(axis=1)
+        col_sums = self.obs_freq.sum(axis=0)
+        
+        expected_freq = []
+        total_counts = self.obs_freq.sum()
+
+        for row_count in row_sums:
+            row_exp_freq = []
+
+            for col_count in col_sums:
+                
+                counts = col_count * row_count / total_counts
+                row_exp_freq.append(counts)
+            
+            expected_freq.append(row_exp_freq)
+
+        return np.array(expected_freq)
+
+    def chisq_statistic(self):
+
+        # implementing only a right-tailed test because chi-square is always a one-sided test
+        # reference: https://stats.stackexchange.com/questions/22347/is-chi-squared-always-a-one-sided-test
+        
+        exp_freq = self.expected_freq()
+        residuals = self.obs_freq - exp_freq
+        chi2_pts = (residuals ** 2) / exp_freq
+        chi2_stat = chi2_pts.sum()
+
+        pval = 1 - scs.chi2.cdf(chi2_stat, self.dof)
+
+        return (chi2_stat, pval, self.dof)
+
+    # next: do power and plots
+
+    # note: ncp = chi square statistic
