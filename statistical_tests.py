@@ -1487,6 +1487,123 @@ class Chi2Ind:
 
         return (chi2_stat, pval, self.dof)
 
-    # next: do power and plots
+    def critical_value(self, sig_level):
 
-    # note: ncp = chi square statistic
+        chi2_null = scs.chi2(df=self.dof, loc=0, scale=1)
+        
+        return chi2_null.ppf(1 - sig_level)
+        
+    def power(self, sig_level):
+        
+        # implementation of power calculation taken from NCSS (p.3 and 4 of pdf):
+        # https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/PASS/Chi-Square_Tests.pdf
+
+        chi2_stat, _, _ = self.chisq_statistic()
+        chi2_alt = scs.ncx2(df=self.dof, nc=chi2_stat)
+        
+        cv = self.critical_value(sig_level)
+
+        return 1 - chi2_alt.cdf(cv)
+       
+        
+    def beta(self, sig_level):
+        
+        power = self.power(sig_level)
+        
+        return 1 - power
+    
+    def get_test_results(self, sig_level):
+        
+        chi2_stat, pval, _ = self.chisq_statistic()
+        critical_value = self.critical_value(sig_level)
+        power = self.power(sig_level)
+        beta = self.beta(sig_level)
+        
+        results = {
+            'Chi2 Statistic': chi2_stat,
+            'p-value': pval,
+            'Degrees of Freedom': self.dof,
+            'Critical Value (chi2-alpha)': critical_value,
+            'Power': power,
+            'Beta (Type II Error)': beta
+        }
+        
+        return results
+
+    def plot_sampling_dist_of_difference_standardized(self, sig_level, 
+                                                      show_alpha=False, show_pvalue=False,
+                                                      show_beta=False, show_power=False):
+        
+        ### calculating values ### 
+        chi2_stat, pval, _ = self.chisq_statistic()
+        critical_value = self.critical_value(sig_level)
+        power = self.power(sig_level)
+        beta = self.beta(sig_level)
+        
+        ### Plotting Null and Alternate Hypothesis ### 
+        
+        fig, ax = plt.subplots(figsize=(12,6))
+
+        chi2_null = scs.chi2(df=self.dof, loc=0, scale=1)
+        chi_alt = scs.ncx2(df=self.dof, nc=chi2_stat)
+
+        x = np.linspace(
+            # min(chi2_null.ppf(0.001), chi_alt.ppf(0.01), -abs(chi2_stat)),
+            0.001,
+            max(chi2_null.ppf(0.99), chi_alt.ppf(0.99), abs(chi2_stat)),
+            1000
+        )
+
+        y_null = chi2_null.pdf(x)
+        y_alt = chi_alt.pdf(x)
+
+        max_pdf = max(max(y_null), max(y_alt)) # for position of label
+
+        ax.plot(x, y_null, label='null', c='cornflowerblue', linewidth=3)
+        ax.plot(x, y_alt, label='alternate', c='lightcoral', linestyle=':')
+
+        ax.axvline(x=chi2_stat, linestyle='--', c='cornflowerblue', linewidth=2)
+        ax.text(chi2_stat, max_pdf, '$chi2$' + ' = {:.5f}'.format(chi2_stat), 
+                bbox={'facecolor':'cornflowerblue', 'alpha':0.5}, horizontalalignment='left')
+
+
+        ### Plotting critical regions ### 
+        ax.axvline(x=critical_value, linestyle = '--', c='black')
+        ax.text(critical_value, max_pdf - 0.01, '$t_{\\alpha}$' + ' = {:.5f}'.format(critical_value), 
+                bbox={'facecolor':'white', 'alpha':0.5}, horizontalalignment='right')
+            
+        ### Plotting shading areas ### 
+            
+        if show_pvalue:
+            ### SHADING IN P-VALUE ###
+            ax.fill_between(x, 0, y_null, color='cornflowerblue', alpha=0.25, where=(x > chi2_stat))
+            ax.text(chi2_stat, 0.05, 'p-value = {:.5f}'.format(pval), style='italic', 
+                    bbox={'facecolor':'cornflowerblue', 
+                            'alpha':0.25})
+        
+        if show_alpha:
+            ### SHADING IN ALPHA/SIG. LEVEL ###
+
+            ax.fill_between(x, 0, y_null, color='grey', alpha=0.25, where=(x > critical_value))
+            ax.text(critical_value, 0, 
+                    '$\\alpha = {:.5f}$'.format(1 - chi2_null.cdf(critical_value)), 
+                    bbox={'facecolor':'grey', 'alpha':0.25}, horizontalalignment='center')
+        
+        if show_power:
+            ### SHADING IN POWER ###
+            ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(x > critical_value))
+            ax.text(2.8, 0.1, '$1 - \\beta$' + ' = {:.5f}'.format(power), style='italic', 
+                    bbox={'facecolor':'lightcoral', 
+                            'alpha':0.25})
+                
+        if show_beta:
+            ### SHADING IN BETA (TYPE II ERROR) ###
+            ax.fill_between(x, 0, y_alt, color='lightcoral', alpha=0.25, where=(x < critical_value))
+            ax.text(0, 0.25, '$\\beta$' + ' = {:.5f}'.format(beta), style='italic', 
+                    bbox={'facecolor':'lightcoral', 
+                            'alpha':0.25})
+        
+        plt.xlabel('chi2-value, relative to the NULL hypothesis')
+        plt.ylabel('Probability Density Function (PDF)')
+        plt.legend()
+        plt.show()
