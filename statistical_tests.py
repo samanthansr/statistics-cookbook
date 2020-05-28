@@ -1452,6 +1452,7 @@ class Chi2Ind:
     def __init__(self, obs_freq):
         self.obs_freq = obs_freq
         self.dof = (obs_freq.shape[0]-1) * (obs_freq.shape[1]-1)
+        self.n = obs_freq.sum()
     
     def expected_freq(self):
 
@@ -1472,6 +1473,22 @@ class Chi2Ind:
             expected_freq.append(row_exp_freq)
 
         return np.array(expected_freq)
+    
+    def cramers_v(self):
+        """
+        Calculates statistical strength using Cramer's V
+
+        References: 
+            - https://en.wikipedia.org/wiki/Cram%C3%A9r%27s_V
+            - http://www.real-statistics.com/chi-square-and-f-distributions/effect-size-chi-square/
+        """
+
+        chisq_statistic, pval, _ = self.chisq_statistic()
+
+        v = np.sqrt((chisq_statistic/self.n)/(min(len(self.obs_freq[0]), 
+                                                  len(self.obs_freq)) - 1))
+
+        return v
 
     def chisq_statistic(self):
 
@@ -1518,11 +1535,13 @@ class Chi2Ind:
         critical_value = self.critical_value(sig_level)
         power = self.power(sig_level)
         beta = self.beta(sig_level)
+        v = self.cramers_v()
         
         results = {
             'Chi2 Statistic': chi2_stat,
             'p-value': pval,
             'Degrees of Freedom': self.dof,
+            'Effect Size (Cramer\'s V)': v,
             'Critical Value (chi2-alpha)': critical_value,
             'Power': power,
             'Beta (Type II Error)': beta
