@@ -100,5 +100,3 @@ def effect_size_paired_ttest_from_group_params(mu1, mu2, s1, s2, corr):
     es = diff_mean / diff_sd
 
     return es
-
-    
