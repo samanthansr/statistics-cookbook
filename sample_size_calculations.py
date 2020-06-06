@@ -100,3 +100,32 @@ def effect_size_paired_ttest_from_group_params(mu1, mu2, s1, s2, corr):
     es = diff_mean / diff_sd
 
     return es
+
+def chi2ind_sample_size(starting_n, effect_size, dof,
+                        power=0.8, sig_level=0.05):
+    """
+    Tested against reference in NCSS PASS manual: 
+    https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/PASS/Chi-Square_Tests.pdf
+    (Page 7)
+    """
+
+    n = starting_n # initialisation
+    sim_power = 0
+    
+    while sim_power < power:
+        
+        n += 1
+    
+        ncp = (effect_size ** 2) * n
+
+        chi2_null = scs.chi2(df=dof, loc=0, scale=1)
+        chi2_alt = scs.ncx2(df=dof, nc=ncp)
+
+        cv = chi2_null.ppf(1 - sig_level)
+        sim_power = 1 - chi2_alt.cdf(cv)
+
+    print('ncp: ', ncp)
+    print('Critical chi2: ', cv)
+    print('Actual Power: ', sim_power)
+
+    return np.ceil(n)
