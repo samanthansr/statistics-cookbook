@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 import scipy.stats as scs
-from statsmodels.stats.proportion import proportions_ztest
 
 import warnings
 
@@ -135,38 +134,22 @@ class TwoPropZTest:
         plt.show()
         
     
-    def z_test_statistic(self, alternative, method='scipy', check_equality=False):
-        
-        # statsmodels
-        count = np.array([self.converted_B, self.converted_A])
-        nobs = np.array([self.n_B, self.n_A])
-        value = 0 
-        z_score, pval = proportions_ztest(count, nobs, value, 
-                                          alternative = alternative,
-                                          prop_var = False)
-        
-        # manual
+    def z_test_statistic(self, alternative):
+
         delta = self.p_B - self.p_A
         pooled_proportion = (self.converted_A + self.converted_B) / (self.n_A + self.n_B)
         std_error_pooled = np.sqrt(pooled_proportion * (1 - pooled_proportion) * (1/self.n_A + 1/self.n_B))
         
-        z_score_manual = (delta - 0) / std_error_pooled
+        z_score = (delta - 0) / std_error_pooled
         
         if alternative == 'smaller':
-            pval_manual = scs.norm.cdf(z_score_manual)
+            pval = scs.norm.cdf(z_score)
         elif alternative == 'larger':
-            pval_manual = 1 - scs.norm.cdf(z_score_manual)
+            pval = 1 - scs.norm.cdf(z_score)
         elif alternative == 'two-sided':
-            pval_manual = (1 - scs.norm.cdf(abs(z_score_manual))) * 2
-        
-        if check_equality:
-            assert z_score_manual == z_score
-            assert pval_manual == pval
+            pval = (1 - scs.norm.cdf(abs(z_score))) * 2
             
-        if method == 'scipy':
-            return (z_score, pval, std_error_pooled)
-        elif method == 'manual':
-            return (z_score_manual, pval_manual, std_error_pooled)
+        return (z_score, pval, std_error_pooled)
         
     def critical_value(self, sig_level, alternative):
         
@@ -179,9 +162,9 @@ class TwoPropZTest:
         elif alternative == 'two-sided':
             return [scs.norm(0, 1).ppf(sig_level / 2), scs.norm(0, 1).ppf(1 - (sig_level / 2))]
         
-    def z_beta(self, sig_level, alternative, z_score_method='scipy'):
+    def z_beta(self, sig_level, alternative):
         
-        z_score, pval, std_error = self.z_test_statistic(alternative=alternative, method=z_score_method)
+        z_score, pval, std_error = self.z_test_statistic(alternative=alternative)
         critical_value = self.critical_value(sig_level, alternative)
         
         if alternative == 'two-sided':
@@ -192,9 +175,9 @@ class TwoPropZTest:
 
         return z_beta
         
-    def power(self, sig_level, alternative, z_score_method='scipy'):
+    def power(self, sig_level, alternative):
         
-        z_beta = self.z_beta(sig_level, alternative, z_score_method)
+        z_beta = self.z_beta(sig_level, alternative)
         
         if alternative == 'smaller':
             return scs.norm.cdf(z_beta)
@@ -205,10 +188,10 @@ class TwoPropZTest:
         elif alternative == 'two-sided':
             return [scs.norm.cdf(z_beta[0]), 1 - scs.norm.cdf(z_beta[1])]
         
-    def beta(self, sig_level, alternative, z_score_method='scipy'):
+    def beta(self, sig_level, alternative):
         
-        power = self.power(sig_level, alternative, z_score_method)
-        z_beta = self.z_beta(sig_level, alternative, z_score_method)
+        power = self.power(sig_level, alternative)
+        z_beta = self.z_beta(sig_level, alternative)
         
         if alternative == 'two-sided':
             return scs.norm.cdf(z_beta[1]) - scs.norm.cdf(z_beta[0])
@@ -216,13 +199,13 @@ class TwoPropZTest:
         else:
             return 1 - power
     
-    def get_test_results(self, sig_level, alternative, z_score_method='scipy'):
+    def get_test_results(self, sig_level, alternative):
         
-        z_score, pval, std_error = self.z_test_statistic(alternative=alternative, method=z_score_method)
+        z_score, pval, std_error = self.z_test_statistic(alternative=alternative)
         critical_value = self.critical_value(sig_level, alternative)
-        z_beta = self.z_beta(sig_level, alternative, z_score_method)
-        power = self.power(sig_level, alternative, z_score_method)
-        beta = self.beta(sig_level, alternative, z_score_method)
+        z_beta = self.z_beta(sig_level, alternative)
+        power = self.power(sig_level, alternative)
+        beta = self.beta(sig_level, alternative)
         
         results = {
             'Z Score': z_score,
@@ -243,9 +226,9 @@ class TwoPropZTest:
         ### calculating values ### 
         z_score, pval, _ = self.z_test_statistic(alternative=alternative)
         critical_value = self.critical_value(sig_level, alternative)
-        z_beta = self.z_beta(sig_level, alternative, z_score_method='scipy')
-        power = self.power(sig_level, alternative, z_score_method='scipy')
-        beta = self.beta(sig_level, alternative, z_score_method='scipy')
+        z_beta = self.z_beta(sig_level, alternative)
+        power = self.power(sig_level, alternative)
+        beta = self.beta(sig_level, alternative)
         
         ### Plotting Null and Alternate Hypothesis ### 
         
