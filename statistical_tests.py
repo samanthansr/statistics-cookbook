@@ -171,6 +171,9 @@ class TwoPropZTest:
             z_beta = [critical_value[0] - z_score, critical_value[1] - z_score]
             
         else:
+            # it's always cv - z_score because: 
+                # if Z > 0 (+ve), then we're looking at a right-tail test, and Z beta would be e.g. 1.96 - 2.03
+                # if Z < 0 (-ve), then it's a left-tail test, and Z beta would be -1.96 - (-2.03)
             z_beta = critical_value - z_score
 
         return z_beta
